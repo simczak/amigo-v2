@@ -130,6 +130,7 @@ body {
     margin-bottom: 8px;
     background: linear-gradient(to right, #fff, #cbd5e1);
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
 }
 
@@ -1237,3 +1238,109 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
     text-align: center;
     animation: pulse 3s infinite;
 }
+
+/* Tracking Dashboard Refinements */
+.participant-item {
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.participant-item:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.participant-logs {
+    display: none;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    animation: slideDown 0.3s ease;
+}
+
+.participant-logs.active {
+    display: block;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.tracking-legend {
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px solid var(--card-border);
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 5px;
+}
+/* Wizard Steps */
+.wizard-step {
+    display: none;
+    animation: fadeIn 0.3s ease;
+}
+
+.wizard-step.active {
+    display: block;
+}
+
+.step-actions {
+    display: flex;
+    gap: 16px; /* Increased gap */
+    margin-top: 24px;
+}
+
+.step-actions button {
+    flex: 1;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Improved Checkbox Styles */
+.checkbox-group label {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 16px;
+    border-radius: 12px;
+    border: 1px solid var(--card-border);
+    transition: all 0.2s;
+    width: 100%;
+    gap: 16px;
+}
+
+.checkbox-group label:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: var(--primary-color);
+}
+
+.checkbox-custom {
+    width: 24px;
+    height: 24px;
+    min-width: 24px;
+}
+
+.checkbox-custom::after {
+    font-size: 14px;
+}
+
+.checkbox-group small {
+    margin-top: 4px;
+    line-height: 1.4;
+    font-size: 0.85rem;
+}
+

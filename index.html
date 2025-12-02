@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=10">
+    <link rel="stylesheet" href="style.css?v=11">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 
@@ -35,52 +35,97 @@
             </header>
 
             <div class="card-body">
-                <div class="input-group">
-                    <label for="participant-name">Adicionar Participante</label>
-                    <div class="input-wrapper">
-                        <input type="text" id="participant-name" placeholder="Nome da pessoa" autocomplete="off">
-                        <button id="add-btn" class="btn-icon"><i class="fas fa-plus"></i></button>
+                <!-- Step 1: Event Name -->
+                <div class="wizard-step active" id="step-1">
+                    <div class="input-group">
+                        <label for="event-name">Nome do Sorteio (Opcional)</label>
+                        <input type="text" id="event-name" placeholder="Ex: Natal da Família 2025">
+                        <small style="color: var(--text-muted); display: block; margin-top: 5px; font-size: 0.8em;">Isso
+                            será usado no link: app.com/?id=<b>natal-da-familia-2025</b></small>
+                    </div>
+                    <div class="step-actions">
+                        <button class="btn-primary next-step-btn" data-next="step-2">Avançar</button>
                     </div>
                 </div>
 
-                <ul id="participants-list" class="participants-list">
-                    <!-- List items will be injected here -->
-                </ul>
-
-                <div class="divider"></div>
-
-                <div class="settings-grid">
-                    <div class="input-group">
-                        <label for="max-value">Valor Máximo (R$)</label>
-                        <div class="input-wrapper">
-                            <span style="align-self: center; color: var(--text-muted);">R$</span>
-                            <input type="number" id="max-value" placeholder="Ex: 50,00">
-                        </div>
-                    </div>
-
+                <!-- Step 2: Date -->
+                <div class="wizard-step hidden" id="step-2">
                     <div class="input-group">
                         <label for="reveal-date">Data da Revelação</label>
                         <input type="date" id="reveal-date">
                     </div>
+                    <div class="step-actions">
+                        <button class="btn-secondary prev-step-btn" data-prev="step-1">Voltar</button>
+                        <button class="btn-primary next-step-btn" data-next="step-3">Avançar</button>
+                    </div>
                 </div>
 
-                <div class="divider"></div>
-
-                <div class="checkbox-group">
-                    <input type="checkbox" id="circle-mode">
-                    <label for="circle-mode">
-                        <div class="checkbox-custom"></div>
-                        <div>
-                            <strong>Círculo Completo</strong>
-                            <small>Garante um único ciclo de presentes (A->B->C->A)</small>
+                <!-- Step 3: Values -->
+                <div class="wizard-step hidden" id="step-3">
+                    <div class="settings-grid">
+                        <div class="input-group">
+                            <label for="min-value">Valor Mínimo (R$)</label>
+                            <div class="input-wrapper">
+                                <span style="align-self: center; color: var(--text-muted);">R$</span>
+                                <input type="number" id="min-value" placeholder="Ex: 10,00">
+                            </div>
                         </div>
-                    </label>
+                        <div class="input-group">
+                            <label for="max-value">Valor Máximo (R$)</label>
+                            <div class="input-wrapper">
+                                <span style="align-self: center; color: var(--text-muted);">R$</span>
+                                <input type="number" id="max-value" placeholder="Ex: 50,00">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="step-actions">
+                        <button class="btn-secondary prev-step-btn" data-prev="step-2">Voltar</button>
+                        <button class="btn-primary next-step-btn" data-next="step-4">Avançar</button>
+                    </div>
+                </div>
+
+                <!-- Step 4: Mode Selection -->
+                <div class="wizard-step hidden" id="step-4">
+                    <div class="checkbox-group" style="margin-bottom: 20px;">
+                        <input type="checkbox" id="circle-mode">
+                        <label for="circle-mode">
+                            <div class="checkbox-custom"></div>
+                            <div>
+                                <strong>Círculo Completo</strong>
+                                <p style="font-size: 0.9em; color: var(--text-muted); margin-top: 5px;">
+                                    Neste modo, o sorteio forma um único grande círculo (A tira B, B tira C, ..., Z tira
+                                    A).
+                                    Isso garante que todos façam parte da mesma corrente de presentes.
+                                </p>
+                            </div>
+                        </label>
+                    </div>
+                    <div class="step-actions">
+                        <button class="btn-secondary prev-step-btn" data-prev="step-3">Voltar</button>
+                        <button class="btn-primary next-step-btn" data-next="step-5">Avançar</button>
+                    </div>
+                </div>
+
+                <!-- Step 5: Participants -->
+                <div class="wizard-step hidden" id="step-5">
+                    <div class="input-group">
+                        <label for="participant-name">Adicionar Participante</label>
+                        <div class="input-wrapper">
+                            <input type="text" id="participant-name" placeholder="Nome da pessoa" autocomplete="off">
+                            <button id="add-btn" class="btn-icon"><i class="fas fa-plus"></i></button>
+                        </div>
+                    </div>
+
+                    <ul id="participants-list" class="participants-list">
+                        <!-- List items will be injected here -->
+                    </ul>
+
+                    <div class="step-actions">
+                        <button class="btn-secondary prev-step-btn" data-prev="step-4">Voltar</button>
+                        <button id="draw-btn" class="btn-primary" disabled>Realizar Sorteio</button>
+                    </div>
                 </div>
             </div>
-
-            <footer class="card-footer">
-                <button id="draw-btn" class="btn-primary" disabled>Realizar Sorteio</button>
-            </footer>
         </section>
 
         <!-- Admin View (Results) -->
@@ -100,10 +145,58 @@
                 <button id="verify-btn" class="btn-secondary" style="margin-bottom: 10px;">
                     <i class="fas fa-list-check"></i> Verificar Sorteio
                 </button>
-                <button id="reset-btn" class="btn-secondary">
-                    <i class="fas fa-plus"></i> Novo Sorteio
-                </button>
+                <div style="display: flex; gap: 10px;">
+                    <button id="tracking-btn" class="btn-secondary" style="flex: 1;">
+                        <i class="fas fa-chart-line"></i> Rastreamento
+                    </button>
+                </div>
             </footer>
+        </section>
+
+        <!-- Tracking View -->
+        <section id="tracking-view" class="card hidden">
+            <header class="card-header">
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                    <button id="back-admin-btn" class="btn-icon-small"
+                        style="background: none; border: none; color: var(--text-color); font-size: 1.2em;"><i
+                            class="fas fa-arrow-left"></i></button>
+                    <h1 style="font-size: 1.5em; margin: 0;">Engajamento</h1>
+                    <div style="width: 24px;"></div> <!-- Spacer -->
+                </div>
+                <p>Veja quem já visualizou e descobriu quem é o seu amigo secreto.</p>
+            </header>
+
+            <div class="card-body">
+                <div class="stats-grid"
+                    style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;">
+                    <div class="stat-card"
+                        style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; text-align: center;">
+                        <div
+                            style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 5px;">
+                            <i class="fas fa-eye" style="font-size: 1.5em; color: var(--primary-color);"></i>
+                            <h3 id="total-views" style="font-size: 2em; margin: 0; color: var(--primary-color);">0</h3>
+                        </div>
+                        <small
+                            style="display: block; font-size: 0.85em; color: var(--text-muted); line-height: 1.2;">Visualizaram<br>o
+                            link</small>
+                    </div>
+                    <div class="stat-card"
+                        style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; text-align: center;">
+                        <div
+                            style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 5px;">
+                            <i class="fas fa-gift" style="font-size: 1.5em; color: var(--accent-color);"></i>
+                            <h3 id="total-reveals" style="font-size: 2em; margin: 0; color: var(--accent-color);">0</h3>
+                        </div>
+                        <small
+                            style="display: block; font-size: 0.85em; color: var(--text-muted); line-height: 1.2;">Revelaram<br>o
+                            amigo</small>
+                    </div>
+                </div>
+
+                <ul id="tracking-list" class="participants-list">
+                    <!-- Tracking items injected here -->
+                </ul>
+            </div>
         </section>
 
         <!-- URL Display (External Card) -->
@@ -126,6 +219,15 @@
             <p class="admin-warning"><i class="fas fa-exclamation-triangle"></i> Não compartilhe esse link com
                 ninguém
                 do grupo</p>
+        </div>
+
+        <!-- Reset Button (Outside Cards) -->
+        <div id="reset-container" class="hidden"
+            style="text-align: center; margin-top: 20px; width: 100%; max-width: 500px;">
+            <button id="reset-btn" class="btn-secondary"
+                style="width: 100%; border-color: var(--accent-color); color: var(--accent-color);">
+                <i class="fas fa-trash-alt"></i> Apagar tudo e recomeçar
+            </button>
         </div>
 
         <!-- Reveal View -->
@@ -210,9 +312,9 @@
 
     <!-- Supabase SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="config.js?v=10"></script>
-    <script src="game-logic.js?v=10"></script>
-    <script src="script.js?v=10"></script>
+    <script src="config.js?v=11"></script>
+    <script src="game-logic.js?v=11"></script>
+    <script src="script.js?v=11"></script>
 
 </body>
 

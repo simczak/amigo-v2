@@ -26,12 +26,45 @@ document.addEventListener('DOMContentLoaded', () => {
     const revealView = document.getElementById('reveal-view');
 
     const participantInput = document.getElementById('participant-name');
+    const eventNameInput = document.getElementById('event-name');
     const addBtn = document.getElementById('add-btn');
     const participantsList = document.getElementById('participants-list');
     const drawBtn = document.getElementById('draw-btn');
     const circleModeCheckbox = document.getElementById('circle-mode');
     const maxValueInput = document.getElementById('max-value');
+    const minValueInput = document.getElementById('min-value');
     const revealDateInput = document.getElementById('reveal-date');
+
+    // Wizard Elements
+    const wizardSteps = document.querySelectorAll('.wizard-step');
+    const nextStepBtns = document.querySelectorAll('.next-step-btn');
+    const prevStepBtns = document.querySelectorAll('.prev-step-btn');
+
+    function showStep(stepId) {
+        wizardSteps.forEach(step => {
+            if (step.id === stepId) {
+                step.classList.add('active');
+                step.classList.remove('hidden');
+            } else {
+                step.classList.remove('active');
+                step.classList.add('hidden');
+            }
+        });
+    }
+
+    nextStepBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const nextStepId = btn.getAttribute('data-next');
+            showStep(nextStepId);
+        });
+    });
+
+    prevStepBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const prevStepId = btn.getAttribute('data-prev');
+            showStep(prevStepId);
+        });
+    });
 
     const resultsList = document.getElementById('results-list');
     const resetBtn = document.getElementById('reset-btn');
@@ -55,6 +88,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const urlDisplay = document.getElementById('url-display');
     const generatedUrlSpan = document.getElementById('generated-url');
     const copyUrlBtn = document.getElementById('copy-url-btn');
+    const resetContainer = document.getElementById('reset-container');
 
     // Restrictions Modal Elements
     const restrictionsModal = document.getElementById('restrictions-modal');
@@ -65,6 +99,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const redrawBtn = document.getElementById('redraw-btn');
     let wasRedrawn = false;
+
+    // Tracking Elements
+    const trackingView = document.getElementById('tracking-view');
+    const trackingBtn = document.getElementById('tracking-btn');
+    const backAdminBtn = document.getElementById('back-admin-btn');
+    const trackingList = document.getElementById('tracking-list');
+    const totalViewsEl = document.getElementById('total-views');
+    const totalRevealsEl = document.getElementById('total-reveals');
 
     // --- Initialization ---
     checkUrlForReveal();
@@ -99,6 +141,10 @@ document.addEventListener('DOMContentLoaded', () => {
         giftBoxTrigger.style.display = 'none';
         revealContent.classList.remove('hidden');
         confettiEffect();
+
+        // Log Reveal Event
+        const giver = document.getElementById('giver-name').textContent;
+        logTrackingEvent(giver, 'reveal');
     });
 
     if (copyUrlBtn) {
@@ -111,6 +157,35 @@ document.addEventListener('DOMContentLoaded', () => {
                     setTimeout(() => copyUrlBtn.classList.remove('copied'), 600);
                 });
             }
+        });
+    }
+
+    if (trackingBtn) {
+        trackingBtn.addEventListener('click', async () => {
+            adminView.classList.remove('active');
+            adminView.classList.add('hidden');
+
+            // Hide external elements
+            if (urlDisplay) urlDisplay.classList.add('hidden');
+            if (resetContainer) resetContainer.classList.add('hidden');
+
+            trackingView.classList.remove('hidden');
+            trackingView.classList.add('active');
+            await renderTrackingView();
+        });
+    }
+
+    if (backAdminBtn) {
+        backAdminBtn.addEventListener('click', () => {
+            trackingView.classList.remove('active');
+            trackingView.classList.add('hidden');
+
+            adminView.classList.remove('hidden');
+            adminView.classList.add('active');
+
+            // Restore external elements
+            if (urlDisplay) urlDisplay.classList.remove('hidden');
+            if (resetContainer) resetContainer.classList.remove('hidden');
         });
     }
 
@@ -184,6 +259,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (draw.settings) {
                     if (draw.settings.maxValue) maxValueInput.value = draw.settings.maxValue;
                     if (draw.settings.revealDate) revealDateInput.value = draw.settings.revealDate;
+                    // Restore event name if we can derive it or if we stored it (we didn't store it explicitly as a name, just slug)
+                    // But we can try to make it nice if we want. For now, let's leave it empty or set it to slug parts?
+                    // Actually, if we are in admin view, we might want to show the name.
+                    // But the input is on setup view.
                 }
 
                 if (adminParam) {
@@ -215,10 +294,14 @@ document.addEventListener('DOMContentLoaded', () => {
                             g: pair.giver,
                             r: pair.receiver,
                             v: draw.settings ? draw.settings.maxValue : '',
+                            min: draw.settings ? draw.settings.minValue : '',
                             d: draw.settings ? draw.settings.revealDate : ''
                         };
                         showRevealView(revealData);
                         showView('reveal-view');
+
+                        // Log View Event
+                        logTrackingEvent(pair.giver, 'view');
                     } else {
                         console.error('Pair not found for userParam:', userParam);
                         showToast("Participante não encontrado neste sorteio.");
@@ -297,8 +380,37 @@ document.addEventListener('DOMContentLoaded', () => {
         renderParticipants();
     }
 
+    async function checkIfAnyRevealed() {
+        if (!supabase || !currentSlug) return false;
+
+        try {
+            const { count, error } = await supabase
+                .from('tracking_events')
+                .select('*', { count: 'exact', head: true })
+                .eq('draw_slug', currentSlug)
+                .eq('action', 'reveal');
+
+            if (error) {
+                console.error("Error checking reveals", error);
+                return false; // Fail safe: allow redraw if check fails? Or block? Let's allow but log.
+            }
+
+            return count > 0;
+        } catch (e) {
+            console.error("Exception checking reveals", e);
+            return false;
+        }
+    }
+
     async function redraw() {
         if (participants.length < 3) return;
+
+        // Check if anyone has already revealed
+        const hasReveals = await checkIfAnyRevealed();
+        if (hasReveals) {
+            showToast("Não é possível resortear: Alguém já revelou o amigo secreto!", "error");
+            return;
+        }
 
         // Use GameLogic to perform the draw
         const restrictionsObj = {};
@@ -370,6 +482,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     pairs: drawData.pairs,
                     settings: {
                         maxValue: drawData.maxValue,
+                        minValue: drawData.minValue,
                         revealDate: drawData.revealDate
                     },
                     // url: url, // Not strictly needed in DB if we have slug, but can keep if column exists. 
@@ -435,6 +548,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Restore state
         currentPairs = data.pairs;
         maxValueInput.value = data.maxValue || '';
+        minValueInput.value = data.minValue || '';
         revealDateInput.value = data.revealDate || '';
 
         // Render results
@@ -456,6 +570,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 generatedUrlSpan.textContent = window.location.href;
             }
         }
+
+        if (resetContainer) resetContainer.classList.remove('hidden');
     }
 
     function showRevealView(data) {
@@ -481,11 +597,17 @@ document.addEventListener('DOMContentLoaded', () => {
             displayDate.textContent = "Data não definida";
         }
 
-        if (data.v) {
-            displayValue.textContent = `Max: R$ ${data.v}`;
+        let valueText = '';
+        if (data.min && data.v) {
+            valueText = `R$ ${data.min} - R$ ${data.v}`;
+        } else if (data.v) {
+            valueText = `Max: R$ ${data.v}`;
+        } else if (data.min) {
+            valueText = `Min: R$ ${data.min}`;
         } else {
-            displayValue.textContent = "Valor livre";
+            valueText = "Valor livre";
         }
+        displayValue.textContent = valueText;
     }
 
     function addParticipant() {
@@ -578,6 +700,8 @@ document.addEventListener('DOMContentLoaded', () => {
         adminView.classList.remove('hidden');
         document.title = "Amigo Secreto - Sorteio Realizado";
 
+        if (resetContainer) resetContainer.classList.remove('hidden');
+
         // Generate Master Link (and save to Supabase)
         generateMasterLink();
     }
@@ -624,6 +748,7 @@ document.addEventListener('DOMContentLoaded', () => {
             pairs: currentPairs,
             participants: participants, // Save original participants list
             maxValue: maxValueInput.value,
+            minValue: minValueInput.value,
             revealDate: revealDateInput.value,
             adminToken: adminToken // Save token in data
         };
@@ -668,9 +793,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 let attempts = 0;
                 while (!saveSuccess && attempts < 3) {
                     attempts++;
-                    // Generate Friendly Slug based on first participant
-                    const firstName = participants[0];
-                    slug = await getUniqueSlug(firstName); // This now includes a DB check
+                    // Generate Friendly Slug
+                    let baseSlugName = "sorteio";
+
+                    if (eventNameInput && eventNameInput.value.trim()) {
+                        baseSlugName = eventNameInput.value.trim();
+                    } else if (participants.length > 0) {
+                        // Fallback to first participant if no name provided (or "sorteio" if user prefers anonymity, but let's stick to requested behavior)
+                        // User asked: "não pode ter o nome do primeiro participante".
+                        // So if NO name is provided, we should use a generic name.
+                        baseSlugName = "amigo-secreto";
+                    }
+
+                    slug = await getUniqueSlug(baseSlugName); // This now includes a DB check
 
                     if (slug) {
                         currentSlug = slug;
@@ -849,25 +984,43 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function resetApp() {
+        if (!confirm("Tem certeza que deseja apagar tudo e recomeçar? O sorteio atual será perdido.")) return;
+
         participants = [];
         currentPairs = [];
         currentSlug = null;
+        restrictions.clear();
         renderParticipants();
         participantInput.value = '';
         maxValueInput.value = '';
+        minValueInput.value = '';
         revealDateInput.value = '';
+        eventNameInput.value = '';
+        circleModeCheckbox.checked = false;
+
+        // Clear lists
+        resultsList.innerHTML = '';
+        verificationList.innerHTML = '';
+
+        // Reset Wizard
+        showStep('step-1');
 
         adminView.classList.remove('active');
         adminView.classList.add('hidden');
         setupView.classList.add('active');
         setupView.classList.remove('hidden');
+
         if (urlDisplay) urlDisplay.classList.add('hidden');
+        if (resetContainer) resetContainer.classList.add('hidden');
 
         const url = new URL(window.location.href);
         url.searchParams.delete('data');
         url.searchParams.delete('id');
         url.searchParams.delete('u');
+        url.searchParams.delete('admin');
         window.history.replaceState({}, '', url);
+
+        document.title = "Amigo Secreto Premium";
     }
 
     function showToast(msg, type = 'success', targetEl = null, duration = 2000) {
@@ -1003,4 +1156,138 @@ document.addEventListener('DOMContentLoaded', () => {
         const decodedStr = decodeURIComponent(atob(str));
         return JSON.parse(decodedStr);
     }
+    // --- Tracking Functions ---
+
+    async function logTrackingEvent(participantName, action) {
+        if (!supabase || !currentSlug) return;
+
+        try {
+            await supabase
+                .from('tracking_events')
+                .insert([{
+                    draw_slug: currentSlug,
+                    participant: participantName,
+                    action: action
+                }]);
+        } catch (e) {
+            console.error("Failed to log tracking event", e);
+        }
+    }
+
+    async function renderTrackingView() {
+        if (!supabase || !currentSlug) return;
+
+        trackingList.innerHTML = '<div class="loader" style="margin: 20px auto;"></div>';
+
+        try {
+            const { data, error } = await supabase
+                .from('tracking_events')
+                .select('*')
+                .eq('draw_slug', currentSlug)
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+
+            // Process Data
+            const stats = {}; // { name: { views: [], reveals: [] } }
+            let uniqueViewCount = 0;
+            let uniqueRevealCount = 0;
+
+            // Initialize with all participants
+            participants.forEach(p => {
+                stats[p] = { views: [], reveals: [] };
+            });
+
+            // Process events (data is already sorted desc by created_at, so we get latest first)
+            data.forEach(event => {
+                if (!stats[event.participant]) return;
+
+                const eventTime = new Date(event.created_at);
+                const timeStr = eventTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                const dateStr = eventTime.toLocaleDateString([], { day: '2-digit', month: '2-digit' });
+                const fullTimeStr = `${dateStr} ${timeStr}`;
+
+                if (event.action === 'view') {
+                    stats[event.participant].views.push(fullTimeStr);
+                } else if (event.action === 'reveal') {
+                    stats[event.participant].reveals.push(fullTimeStr);
+                }
+            });
+
+            // Calculate unique counts
+            Object.values(stats).forEach(s => {
+                if (s.views.length > 0) uniqueViewCount++;
+                if (s.reveals.length > 0) uniqueRevealCount++;
+            });
+
+            totalViewsEl.textContent = uniqueViewCount;
+            totalRevealsEl.textContent = uniqueRevealCount;
+
+            trackingList.innerHTML = '';
+            participants.forEach(p => {
+                const s = stats[p];
+                const li = document.createElement('li');
+                li.className = 'participant-item';
+                li.style.flexDirection = 'column'; // Stack content vertically
+                li.style.alignItems = 'stretch';
+
+                // Add click handler to toggle logs
+                li.onclick = (e) => {
+                    // Don't toggle if clicking a link/button inside (if any)
+                    if (e.target.tagName === 'A' || e.target.tagName === 'BUTTON') return;
+
+                    const logsDiv = li.querySelector('.participant-logs');
+                    const chevron = li.querySelector('.fa-chevron-down');
+                    if (logsDiv) {
+                        logsDiv.classList.toggle('active');
+                        if (chevron) {
+                            chevron.style.transform = logsDiv.classList.contains('active') ? 'rotate(180deg)' : 'rotate(0deg)';
+                        }
+                    }
+                };
+
+                // Format logs
+                let logsHtml = '';
+                const hasLogs = s.views.length > 0 || s.reveals.length > 0;
+
+                if (hasLogs) {
+                    logsHtml += '<div class="participant-logs">';
+
+                    if (s.reveals.length > 0) {
+                        logsHtml += `<div style="color: var(--accent-color); margin-bottom: 4px;"><strong><i class="fas fa-gift"></i> Revelou:</strong> ${s.reveals.join(', ')}</div>`;
+                    }
+                    if (s.views.length > 0) {
+                        logsHtml += `<div style="color: var(--primary-color);"><strong><i class="fas fa-eye"></i> Visualizou:</strong> ${s.views.join(', ')}</div>`;
+                    }
+                    logsHtml += '</div>';
+                } else {
+                    logsHtml = '<div class="participant-logs"><div style="font-size: 0.8em; color: var(--text-muted);">Nenhum acesso registrado.</div></div>';
+                }
+
+                li.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <strong>${p}</strong>
+                            <i class="fas fa-chevron-down" style="font-size: 0.8em; color: var(--text-muted); transition: transform 0.3s;"></i>
+                        </div>
+                        <div style="display: flex; gap: 15px; font-size: 1.1em;">
+                            <div style="display: flex; align-items: center; gap: 5px; color: ${s.views.length > 0 ? 'var(--primary-color)' : 'var(--text-muted)'}; opacity: ${s.views.length > 0 ? 1 : 0.5};" title="Visualizações">
+                                <i class="fas fa-eye"></i> <span>${s.views.length}</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 5px; color: ${s.reveals.length > 0 ? 'var(--accent-color)' : 'var(--text-muted)'}; opacity: ${s.reveals.length > 0 ? 1 : 0.5};" title="Revelações">
+                                <i class="fas fa-gift"></i> <span>${s.reveals.length}</span>
+                            </div>
+                        </div>
+                    </div>
+                    ${logsHtml}
+                `;
+                trackingList.appendChild(li);
+            });
+
+        } catch (e) {
+            console.error("Error loading tracking data", e);
+            trackingList.innerHTML = '<p style="color: var(--danger-color); text-align: center;">Erro ao carregar dados.</p>';
+        }
+    }
+
 });
