@@ -33,6 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const circleModeCheckbox = document.getElementById('circle-mode');
     const maxValueInput = document.getElementById('max-value');
     const minValueInput = document.getElementById('min-value');
+    const valuePendingCheckbox = document.getElementById('value-pending');
     const revealDateInput = document.getElementById('reveal-date');
 
     // Wizard Elements
@@ -117,6 +118,20 @@ document.addEventListener('DOMContentLoaded', () => {
     participantInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') addParticipant();
     });
+
+    if (valuePendingCheckbox) {
+        valuePendingCheckbox.addEventListener('change', () => {
+            if (valuePendingCheckbox.checked) {
+                minValueInput.value = '';
+                maxValueInput.value = '';
+                minValueInput.disabled = true;
+                maxValueInput.disabled = true;
+            } else {
+                minValueInput.disabled = false;
+                maxValueInput.disabled = false;
+            }
+        });
+    }
 
     drawBtn.addEventListener('click', performDraw);
     resetBtn.addEventListener('click', resetApp);
@@ -293,6 +308,16 @@ document.addEventListener('DOMContentLoaded', () => {
                                 eventNameInput.value = draw.settings.eventName;
                                 document.title = draw.settings.eventName;
                             }
+                            if (valuePendingCheckbox) {
+                                valuePendingCheckbox.checked = !!draw.settings.valuePending;
+                                if (valuePendingCheckbox.checked) {
+                                    minValueInput.disabled = true;
+                                    maxValueInput.disabled = true;
+                                } else {
+                                    minValueInput.disabled = false;
+                                    maxValueInput.disabled = false;
+                                }
+                            }
                         }
 
                         renderResults();
@@ -323,7 +348,8 @@ document.addEventListener('DOMContentLoaded', () => {
                             r: pair.receiver,
                             v: draw.settings ? draw.settings.maxValue : '',
                             min: draw.settings ? draw.settings.minValue : '',
-                            d: draw.settings ? draw.settings.revealDate : ''
+                            d: draw.settings ? draw.settings.revealDate : '',
+                            valuePending: draw.settings ? draw.settings.valuePending : false
                         };
                         showRevealView(revealData);
                         showView('reveal-view');
@@ -505,7 +531,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         maxValue: drawData.maxValue,
                         minValue: drawData.minValue,
                         revealDate: drawData.revealDate,
-                        eventName: drawData.eventName
+                        eventName: drawData.eventName,
+                        valuePending: drawData.valuePending
                     },
                     // url: url, // Not strictly needed in DB if we have slug, but can keep if column exists. 
                     // New schema doesn't have 'url' column? Let's check schema_v2.sql.
@@ -573,6 +600,17 @@ document.addEventListener('DOMContentLoaded', () => {
         minValueInput.value = data.minValue || '';
         revealDateInput.value = data.revealDate || '';
 
+        if (valuePendingCheckbox) {
+            valuePendingCheckbox.checked = !!data.valuePending;
+            if (valuePendingCheckbox.checked) {
+                maxValueInput.disabled = true;
+                minValueInput.disabled = true;
+            } else {
+                maxValueInput.disabled = false;
+                minValueInput.disabled = false;
+            }
+        }
+
         // Render results
         renderResults();
         updateIndividualLinks();
@@ -621,7 +659,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         let valueText = '';
-        if (data.min && data.v) {
+        if (data.valuePending) {
+            valueText = "Valor a definir";
+        } else if (data.min && data.v) {
             valueText = `R$ ${data.min} - R$ ${data.v}`;
         } else if (data.v) {
             valueText = `Max: R$ ${data.v}`;
@@ -779,6 +819,7 @@ document.addEventListener('DOMContentLoaded', () => {
             minValue: minValueInput.value,
             revealDate: revealDateInput.value,
             eventName: eventNameInput.value, // Save event name
+            valuePending: valuePendingCheckbox ? valuePendingCheckbox.checked : false,
             adminToken: adminToken // Save token in data
         };
 
@@ -1026,6 +1067,11 @@ document.addEventListener('DOMContentLoaded', () => {
         revealDateInput.value = '';
         eventNameInput.value = '';
         circleModeCheckbox.checked = false;
+        if (valuePendingCheckbox) {
+            valuePendingCheckbox.checked = false;
+            minValueInput.disabled = false;
+            maxValueInput.disabled = false;
+        }
 
         // Clear lists
         resultsList.innerHTML = '';
