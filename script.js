@@ -306,6 +306,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     // Reveal View
                     // We need pairs to find the user
                     currentPairs = draw.pairs;
+                    currentSlug = draw.slug; // Fix: Set currentSlug for tracking
                     // We don't necessarily need to populate global participants or settings for the reveal view
                     // but it doesn't hurt as long as we don't show the setup view.
 
