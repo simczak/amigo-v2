@@ -946,8 +946,8 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             newWhatsappBtn.onclick = () => {
-                const text = `Olá *${pair.giver}*!%0A%0ASeu amigo secreto já foi sorteado.%0A%0AVeja quem você tirou aqui:%0A${link}`;
-                window.open(`https://wa.me/?text=${text}`, '_blank');
+                const text = `Olá *${pair.giver}*!\n\nSeu amigo secreto já foi sorteado.\n\nVeja quem você tirou aqui:\n${link}`;
+                window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
             };
         });
     }
