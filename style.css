@@ -1344,3 +1344,15 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
     font-size: 0.85rem;
 }
 
+
+/* Remove internal scrolling for participants list */
+.participants-list {
+    max-height: none !important;
+    overflow-y: visible !important;
+    padding-right: 0 !important;
+}
+
+.participants-list::-webkit-scrollbar {
+    display: none !important;
+}
+
