@@ -77,6 +77,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const giftBoxTrigger = document.getElementById('gift-box-trigger');
     const revealContent = document.getElementById('reveal-content');
     const giverNameDisplay = document.getElementById('giver-name');
+    const revealGiverName = document.getElementById('reveal-giver-name');
     const receiverNameDisplay = document.getElementById('receiver-name');
     const displayDate = document.getElementById('display-date');
     const displayValue = document.getElementById('display-value');
@@ -230,6 +231,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Case 2: Friendly URL (Supabase)
         if (idParam) {
+            // SECURITY FIX: If only ID is present (no admin, no user), do NOT load data.
+            // This prevents users from accidentally editing an existing draw or seeing its config.
+            if (!adminParam && !userParam) {
+                // Just show setup view as if it were a new draw, but maybe clear the URL to avoid confusion?
+                // Or just return.
+                console.log("ID present but no access token. Treating as new session.");
+
+                // Optional: Clear URL to remove the ID so it looks like a fresh start
+                const url = new URL(window.location.href);
+                url.searchParams.delete('id');
+                window.history.replaceState({}, '', url);
+
+                showView('setup-view');
+                return;
+            }
+
             if (!supabase) {
                 showToast("Erro de conexão com o banco de dados.");
                 showView('setup-view');
@@ -251,25 +268,35 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
 
-                currentPairs = draw.pairs;
-                participants = draw.participants;
-                currentSlug = draw.slug;
+                // Only load data if we have a valid token (Admin or User)
+                // Actually, we need to load it to verify the token, BUT we shouldn't populate the global state
+                // unless the token is valid.
 
-                // Restore settings
-                if (draw.settings) {
-                    if (draw.settings.maxValue) maxValueInput.value = draw.settings.maxValue;
-                    if (draw.settings.revealDate) revealDateInput.value = draw.settings.revealDate;
-                    // Restore event name if we can derive it or if we stored it (we didn't store it explicitly as a name, just slug)
-                    // But we can try to make it nice if we want. For now, let's leave it empty or set it to slug parts?
-                    // Actually, if we are in admin view, we might want to show the name.
-                    // But the input is on setup view.
-                }
+                // However, the logic below splits into "if adminParam" and "if userParam".
+                // The issue is that we were populating `participants` and `currentPairs` BEFORE checking the token.
+
+                // Let's move the population logic INSIDE the valid blocks.
 
                 if (adminParam) {
                     // Admin View
                     if (adminParam === draw.admin_token) {
+                        // Valid Admin
+                        currentPairs = draw.pairs;
+                        participants = draw.participants;
+                        currentSlug = draw.slug;
+
+                        // Restore settings
+                        if (draw.settings) {
+                            if (draw.settings.maxValue) maxValueInput.value = draw.settings.maxValue;
+                            if (draw.settings.revealDate) revealDateInput.value = draw.settings.revealDate;
+                            if (draw.settings.eventName) {
+                                eventNameInput.value = draw.settings.eventName;
+                                document.title = draw.settings.eventName;
+                            }
+                        }
+
                         renderResults();
-                        generateMasterLink(adminParam); // Pass existing token to prevent regeneration
+                        generateMasterLink(adminParam);
                         showView('admin-view');
                     } else {
                         showToast("Acesso negado. Token inválido.");
@@ -277,15 +304,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 } else if (userParam) {
                     // Reveal View
-                    console.log('Checking Reveal View for userParam:', userParam);
-                    console.log('Current Pairs:', currentPairs);
+                    // We need pairs to find the user
+                    currentPairs = draw.pairs;
+                    // We don't necessarily need to populate global participants or settings for the reveal view
+                    // but it doesn't hurt as long as we don't show the setup view.
 
-                    // Check if userParam matches a secretId or a slug (legacy fallback)
                     const pair = currentPairs.find(p => {
                         const slug = GameLogic.generateSlug(p.giver);
                         const matchSecret = p.secretId === userParam;
                         const matchSlug = slug === userParam;
-                        console.log(`Checking pair: ${p.giver} (Secret: ${p.secretId}, Slug: ${slug}) -> MatchSecret: ${matchSecret}, MatchSlug: ${matchSlug}`);
                         return matchSecret || matchSlug;
                     });
 
@@ -299,18 +326,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         };
                         showRevealView(revealData);
                         showView('reveal-view');
-
-                        // Log View Event
                         logTrackingEvent(pair.giver, 'view');
                     } else {
-                        console.error('Pair not found for userParam:', userParam);
                         showToast("Participante não encontrado neste sorteio.");
                         showView('setup-view');
                     }
-                } else {
-                    // No user param, maybe show a generic "Enter your code" screen?
-                    // For now, redirect to setup
-                    showView('setup-view');
                 }
 
             } catch (e) {
@@ -483,7 +503,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     settings: {
                         maxValue: drawData.maxValue,
                         minValue: drawData.minValue,
-                        revealDate: drawData.revealDate
+                        revealDate: drawData.revealDate,
+                        eventName: drawData.eventName
                     },
                     // url: url, // Not strictly needed in DB if we have slug, but can keep if column exists. 
                     // New schema doesn't have 'url' column? Let's check schema_v2.sql.
@@ -588,6 +609,7 @@ document.addEventListener('DOMContentLoaded', () => {
         giftBoxTrigger.style.display = 'flex'; // Restore gift box
 
         giverNameDisplay.textContent = data.g; // giver
+        if (revealGiverName) revealGiverName.textContent = data.g; // Show name on box screen
         receiverNameDisplay.textContent = data.r; // receiver
 
         if (data.d) {
@@ -698,7 +720,12 @@ document.addEventListener('DOMContentLoaded', () => {
         setupView.classList.add('hidden');
         adminView.classList.add('active');
         adminView.classList.remove('hidden');
-        document.title = "Amigo Secreto - Sorteio Realizado";
+
+        if (eventNameInput.value.trim()) {
+            document.title = eventNameInput.value.trim();
+        } else {
+            document.title = "Amigo Secreto - Sorteio Realizado";
+        }
 
         if (resetContainer) resetContainer.classList.remove('hidden');
 
@@ -750,6 +777,7 @@ document.addEventListener('DOMContentLoaded', () => {
             maxValue: maxValueInput.value,
             minValue: minValueInput.value,
             revealDate: revealDateInput.value,
+            eventName: eventNameInput.value, // Save event name
             adminToken: adminToken // Save token in data
         };
 
@@ -917,8 +945,8 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             newWhatsappBtn.onclick = () => {
-                const text = `Olá ${pair.giver}! Seu amigo secreto já foi sorteado. Veja quem você tirou aqui: ${link}`;
-                window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+                const text = `Olá *${pair.giver}*!%0A%0ASeu amigo secreto já foi sorteado.%0A%0AVeja quem você tirou aqui:%0A${link}`;
+                window.open(`https://wa.me/?text=${text}`, '_blank');
             };
         });
     }
